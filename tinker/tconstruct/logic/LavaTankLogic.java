@@ -22,8 +22,14 @@ public class LavaTankLogic extends TileEntity
 	public LavaTankLogic()
 	{
 		tank = new LiquidTank(LiquidContainerRegistry.BUCKET_VOLUME);
-		max = LiquidContainerRegistry.BUCKET_VOLUME;
+		max = LiquidContainerRegistry.BUCKET_VOLUME*4;
+		pressure = 0;
 	}
+	
+	public boolean canUpdate()
+    {
+        return false;
+    }
 	
 	@Override
 	public LiquidStack getLiquid ()
@@ -106,7 +112,7 @@ public class LavaTankLogic extends TileEntity
 	@Override
 	public int getTankPressure ()
 	{
-		return 0;
+		return pressure;
 	}
 	
 	public void readFromNBT(NBTTagCompound par1NBTTagCompound)
