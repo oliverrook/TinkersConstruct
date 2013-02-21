@@ -12,8 +12,9 @@ import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 import tinker.common.InventoryBlock;
 import tinker.tconstruct.TConstruct;
-import tinker.tconstruct.TConstructContent;
+import tinker.tconstruct.TContent;
 import tinker.tconstruct.client.TableRender;
+import tinker.tconstruct.logic.CastingTableLogic;
 import tinker.tconstruct.logic.PartCrafterLogic;
 import tinker.tconstruct.logic.PatternChestLogic;
 import tinker.tconstruct.logic.PatternShaperLogic;
@@ -29,9 +30,10 @@ public class ToolStationBlock extends InventoryBlock
 		this.setHardness(2f);
 	}
 
+	/* Rendering */
 	public String getTextureFile ()
 	{
-		return TConstructContent.blockTexture;
+		return TContent.blockTexture;
 	}
 
 	public int getBlockTextureFromSideAndMetadata (int side, int meta)
@@ -95,32 +97,103 @@ public class ToolStationBlock extends InventoryBlock
 		return true;
 	}
 
+	public AxisAlignedBB getSelectedBoundingBoxFromPool (World world, int x, int y, int z)
+	{
+		int metadata = world.getBlockMetadata(x, y, z);
+		if (metadata == 5)
+			return AxisAlignedBB.getAABBPool().addOrModifyAABBInPool((double) x + this.minX, (double) y + this.minY, (double) z + this.minZ, (double) x + this.maxX, (double) y + this.maxY - 0.125, (double) z + this.maxZ);
+		return AxisAlignedBB.getAABBPool().addOrModifyAABBInPool((double) x + this.minX, (double) y + this.minY, (double) z + this.minZ, (double) x + this.maxX, (double) y + this.maxY, (double) z + this.maxZ);
+	}
+
+	/* Activation */
+	@Override
+	public boolean onBlockActivated (World world, int x, int y, int z, EntityPlayer player, int side, float clickX, float clickY, float clickZ)
+	{
+		int md = world.getBlockMetadata(x, y, z);
+		if (md == 14)
+		{
+			return activateCastingTable(world, x, y, z, player);
+		}
+		else
+			return super.onBlockActivated(world, x, y, z, player, side, clickX, clickY, clickZ);
+	}
+
+	boolean activateCastingTable (World world, int x, int y, int z, EntityPlayer player)
+	{
+		if (!world.isRemote)
+		{
+        	System.out.println("Castses");
+			CastingTableLogic logic = (CastingTableLogic) world.getBlockTileEntity(x, y, z);
+			if (!logic.isStackInSlot(0))
+			{
+				ItemStack stack = player.getCurrentEquippedItem();
+                stack = player.inventory.decrStackSize(player.inventory.currentItem, 1);
+                logic.setInventorySlotContents(0, stack);
+			}
+			else
+            {
+                /*ItemStack insideStack = logic.takeItemInColumn(0);
+
+                if (insideStack == null)
+                {r
+                    insideStack = logic.takeItemInColumn(1 - 0);
+                }
+
+                if (insideStack != null)
+                {
+                    this.spawnItem(world, x, y, z, insideStack);
+                }*/
+            }
+			
+			world.markBlockForUpdate(x, y, z);
+		}
+		return true;
+	}
+
+	/* Data */
 	public int damageDropped (int meta)
 	{
 		return meta;
 	}
 
 	public TileEntity createNewTileEntity (World world, int metadata)
-    {
+	{
 		switch (metadata)
 		{
-		case 0: return new ToolStationLogic();
-		case 1: return new PartCrafterLogic();
-		case 2: return new PartCrafterLogic();
-		case 3: return new PartCrafterLogic();
-		case 4: return new PartCrafterLogic();
-		case 5: return new PatternChestLogic();
-		case 6: return new PatternChestLogic();
-		case 7: return new PatternChestLogic();
-		case 8: return new PatternChestLogic();
-		case 9: return new PatternChestLogic();
-		case 10: return new PatternShaperLogic();
-		case 11: return new PatternShaperLogic();
-		case 12: return new PatternShaperLogic();
-		case 13: return new PatternShaperLogic();
-		default: return null;
-		}        
-    }
+		case 0:
+			return new ToolStationLogic();
+		case 1:
+			return new PartCrafterLogic();
+		case 2:
+			return new PartCrafterLogic();
+		case 3:
+			return new PartCrafterLogic();
+		case 4:
+			return new PartCrafterLogic();
+		case 5:
+			return new PatternChestLogic();
+		case 6:
+			return new PatternChestLogic();
+		case 7:
+			return new PatternChestLogic();
+		case 8:
+			return new PatternChestLogic();
+		case 9:
+			return new PatternChestLogic();
+		case 10:
+			return new PatternShaperLogic();
+		case 11:
+			return new PatternShaperLogic();
+		case 12:
+			return new PatternShaperLogic();
+		case 13:
+			return new PatternShaperLogic();
+		case 14:
+			return new CastingTableLogic();
+		default:
+			return null;
+		}
+	}
 
 	@Override
 	public Integer getGui (World world, int x, int y, int z, EntityPlayer entityplayer)
@@ -151,18 +224,10 @@ public class ToolStationBlock extends InventoryBlock
 		{
 			list.add(new ItemStack(id, 1, iter));
 		}
-		
-		for (int iter = 10; iter < 14; iter++)
+
+		for (int iter = 10; iter < 15; iter++)
 		{
 			list.add(new ItemStack(id, 1, iter));
 		}
-	}
-
-	public AxisAlignedBB getSelectedBoundingBoxFromPool (World world, int x, int y, int z)
-	{
-		int metadata = world.getBlockMetadata(x, y, z);
-		if (metadata == 5)
-			return AxisAlignedBB.getAABBPool().addOrModifyAABBInPool((double) x + this.minX, (double) y + this.minY, (double) z + this.minZ, (double) x + this.maxX, (double) y + this.maxY - 0.125, (double) z + this.maxZ);
-		return AxisAlignedBB.getAABBPool().addOrModifyAABBInPool((double) x + this.minX, (double) y + this.minY, (double) z + this.minZ, (double) x + this.maxX, (double) y + this.maxY, (double) z + this.maxZ);
 	}
 }

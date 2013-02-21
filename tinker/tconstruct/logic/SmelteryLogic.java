@@ -1,47 +1,63 @@
 package tinker.tconstruct.logic;
 
-import net.minecraft.block.Block;
+import java.util.ArrayList;
+
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Container;
-import net.minecraft.item.ItemFood;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 import net.minecraft.network.INetworkManager;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.Packet132TileEntityData;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.MathHelper;
 import net.minecraft.world.World;
 import net.minecraftforge.liquids.ILiquidTank;
 import net.minecraftforge.liquids.LiquidStack;
+import tinker.common.CoordTuple;
 import tinker.common.IActiveLogic;
 import tinker.common.IFacingLogic;
 import tinker.common.InventoryLogic;
-import tinker.tconstruct.TConstructContent;
+import tinker.tconstruct.TContent;
 import tinker.tconstruct.container.SmelteryContainer;
 import tinker.tconstruct.crafting.Smeltery;
 
 /* Simple class for storing items in the block
  */
 
-public class SmelteryLogic extends InventoryLogic
+public class SmelteryLogic extends InventoryLogic 
 	implements IActiveLogic, IFacingLogic
 {
-	boolean validStructure;
+	public boolean validStructure;
 	byte direction;
 	int internalTemp;
 	int maxTemp;
 	int useTime;
 	public int fuelGague;
-	int[] tankCoords;
-	int[] bottomTemps;
+	
+	CoordTuple lavaTank;
+	CoordTuple drain;
+	public CoordTuple centerPos;
+	
+	public int[] activeTemps;
+	public int[] meltingTemps;
 	int tick;
 	
+	public ArrayList<LiquidStack> moltenMetal = new ArrayList<LiquidStack>();
+	int maxLiquid = 10000;
+	int slag;
+
 	public SmelteryLogic()
 	{
 		super(9);
-		bottomTemps = new int[9];
+		activeTemps = new int[9];
+		meltingTemps = new int[9];
 		for (int i = 0; i < 9; i++)
-			bottomTemps[i] = 20;
+		{
+			activeTemps[i] = 20;
+			meltingTemps[i] = 0;
+		}
 	}
 
 	/* Misc */
@@ -58,81 +74,153 @@ public class SmelteryLogic extends InventoryLogic
 	}
 
 	@Override
-	public byte getDirection() 
+	public byte getDirection ()
 	{
 		return direction;
 	}
 
 	@Override
-	public void setDirection(byte dir) 
+	public void setDirection (float yaw, float pitch)
 	{
-		direction = dir;
+		int facing = MathHelper.floor_double((double)(yaw / 360) + 0.5D) & 3;
+        switch (facing)
+        {
+            case 0:
+            	direction = 2;
+                break;
+
+            case 1:
+            	direction = 5;
+                break;
+
+            case 2:
+            	direction = 3;
+                break;
+
+            case 3:
+            	direction = 4;
+                break;
+        }
+
+		//direction = dir;
 	}
 
 	@Override
-	public boolean getActive() 
+	public boolean getActive ()
 	{
 		return validStructure;
 	}
 
 	@Override
-	public void setActive(boolean flag) 
+	public void setActive (boolean flag)
 	{
-		worldObj.markBlockForUpdate(xCoord, yCoord, zCoord);		
+		worldObj.markBlockForUpdate(xCoord, yCoord, zCoord);
 	}
 
-	@Override
-	public boolean canFaceVertical() 
-	{
-		return false;
-	}
-	
 	public int getScaledFuelGague (int scale)
 	{
 		return (fuelGague * scale) / 52;
 	}
-	
+
 	public int getInternalTemperature ()
 	{
 		return internalTemp;
 	}
-	
+
 	public int getTempForSlot (int slot)
 	{
-		return bottomTemps[slot];
+		return activeTemps[slot];
 	}
-	
+
 	/* Updating */
 	public void updateEntity ()
 	{
+		//System.out.println("tick");
 		tick++;
-		if (tick % 4 == 0)
-			updateTemperatures();
-			
+		if (tick % 4 == 0 && !worldObj.isRemote)
+			heatItems();
+
 		if (tick == 20)
 		{
 			tick = 0;
 			checkValidPlacement();
 			updateFuelGague();
-			
+
 			if (useTime > 0)
 				useTime--;
-			if (!worldObj.isRemote)
-				matchInventoryToWorld();
-			
+			/*if (!worldObj.isRemote)
+				matchInventoryToWorld();*/
+
 			if (validStructure && useTime == 0)
 			{
-				TileEntity tank = worldObj.getBlockTileEntity(tankCoords[0], tankCoords[1], tankCoords[2]);
+				TileEntity tank = worldObj.getBlockTileEntity(lavaTank.x, lavaTank.y, lavaTank.z);
 				if (tank instanceof ILiquidTank)
 				{
-					LiquidStack liquid = ((ILiquidTank)tank).drain(10, true);
+					LiquidStack liquid = ((ILiquidTank) tank).drain(10, true);
 					if (liquid != null)
 					{
-						System.out.println("Drained "+liquid.amount);
+						//System.out.println("Drained " + liquid.amount);
 						useTime += liquid.amount;
 					}
 				}
 			}
+		}
+	}
+
+	void heatItems ()
+	{
+		for (int i = 0; i < 9; i++)
+		{
+			if (meltingTemps[i] > 20 && this.isStackInSlot(i))
+			{
+				if (activeTemps[i] < internalTemp && activeTemps[i] < meltingTemps[i])
+					activeTemps[i] += 1;
+				else if (meltingTemps[i] >= activeTemps[i])
+				{
+					LiquidStack result = getResultFor(inventory[i]);
+					if (result != null)
+					{
+						inventory[i] = null;
+						addMoltenMetal(result);
+						ArrayList alloys = Smeltery.mixMetals(moltenMetal);
+						for (int al = 0; al < alloys.size(); al++)
+						{
+							LiquidStack liquid = (LiquidStack) alloys.get(al);
+							addMoltenMetal(liquid);
+						}
+						onInventoryChanged();
+						//setWorldToInventory();
+					}
+				}
+
+			}
+
+			else
+				activeTemps[i] = 20;
+		}
+	}
+	
+	void addMoltenMetal(LiquidStack liquid)
+	{
+		if (moltenMetal.size() == 0)
+			moltenMetal.add(liquid);
+		else
+		{
+			boolean added = false;
+			for (LiquidStack l : moltenMetal)
+			{
+				if (l.itemID == liquid.itemID && l.itemMeta == liquid.itemMeta)
+				{
+					l.amount += liquid.amount;
+					added = true;
+				}
+				/*if (l.amount <= 0)
+				{
+					moltenMetal.remove(l);
+				}*/
+			}
+			if (!added)
+				moltenMetal.add(liquid);
 		}
 	}
 	
@@ -140,216 +228,136 @@ public class SmelteryLogic extends InventoryLogic
 	{
 		for (int i = 0; i < 9; i++)
 		{
-			if (this.isStackInSlot(i) && bottomTemps[i] < internalTemp)
-				bottomTemps[i] += 1;
-			else
-				bottomTemps[i] = 20;
+			meltingTemps[i] = Smeltery.instance.getLiquifyTemperature(inventory[i]);
 		}
 	}
-	
-	void updateFuelGague()
+
+	void updateFuelGague ()
 	{
-		if (tankCoords == null || tankCoords.length < 3)
+		if (lavaTank == null)
 			return;
-		
-		TileEntity tank = worldObj.getBlockTileEntity(tankCoords[0], tankCoords[1], tankCoords[2]);
+
+		TileEntity tank = worldObj.getBlockTileEntity(lavaTank.x, lavaTank.y, lavaTank.z);
 		if (tank == null)
 		{
 			fuelGague = 0;
 		}
 		if (tank instanceof ILiquidTank)
 		{
-			LiquidStack liquid = ((ILiquidTank)tank).getLiquid();
-			int capacity = ((ILiquidTank)tank).getCapacity();
+			LiquidStack liquid = ((ILiquidTank) tank).getLiquid();
+			int capacity = ((ILiquidTank) tank).getCapacity();
 			if (liquid != null)
 				fuelGague = liquid.amount * 52 / capacity;
 			else
 				fuelGague = 0;
 		}
 	}
-	
-	public ItemStack getResultFor (ItemStack stack)
-	{
-		ItemStack result = Smeltery.instance.getSmeltingResult(stack);
-		if (result != null)
-			return result;
 
-		return null;
+	public LiquidStack getResultFor (ItemStack stack)
+	{
+		return Smeltery.instance.getSmelteryResult(stack);
 	}
-	
+
 	/* Inventory */
 	public int getInventoryStackLimit ()
 	{
 		return 1;
 	}
 	
-	@Override
-	public void setInventorySlotContents(int slot, ItemStack itemstack)
-    {
-		super.setInventorySlotContents(slot, itemstack);
-		setWorldToInventory();
-    }
-	
-	@Override
-	public ItemStack decrStackSize(int slot, int quantity)
-    {
-		ItemStack stack = super.decrStackSize(slot, quantity);
-		setWorldToInventory();
-		return stack;
-    }
-	
-	/* World-inventory matching */
-	void matchInventoryToWorld()
+	public void onInventoryChanged()
 	{
-		switch(getDirection())
+		updateTemperatures();
+		super.onInventoryChanged();
+		worldObj.markBlockForUpdate(xCoord, yCoord, zCoord);
+	}
+
+	/* Multiblock */
+	public void checkValidPlacement ()
+	{
+		switch (getDirection())
 		{
 		case 2: // +z
-			grabWorldBlocks(xCoord, yCoord, zCoord+2);
+			checkValidStructure(xCoord, yCoord, zCoord + 2);
 			break;
 		case 3: // -z
-			grabWorldBlocks(xCoord, yCoord, zCoord-2);
+			checkValidStructure(xCoord, yCoord, zCoord - 2);
 			break;
 		case 4: // +x
-			grabWorldBlocks(xCoord+2, yCoord, zCoord);
+			checkValidStructure(xCoord + 2, yCoord, zCoord);
 			break;
 		case 5: // -x
-			grabWorldBlocks(xCoord-2, yCoord, zCoord);
+			checkValidStructure(xCoord - 2, yCoord, zCoord);
 			break;
 		}
 	}
-	
-	void setWorldToInventory()
-	{
-		switch(getDirection())
-		{
-		case 2: // +z
-			setWorldToInventory(xCoord, yCoord, zCoord+2);
-			break;
-		case 3: // -z
-			setWorldToInventory(xCoord, yCoord, zCoord-2);
-			break;
-		case 4: // +x
-			setWorldToInventory(xCoord+2, yCoord, zCoord);
-			break;
-		case 5: // -x
-			setWorldToInventory(xCoord-2, yCoord, zCoord);
-			break;
-		}
-	}
-	
-	public void grabWorldBlocks(int x, int y, int z)
-	{
-		for (int xPos = 0; xPos <= 2; xPos++)
-		{
-			for (int zPos = 0; zPos <= 2; zPos++)
-			{
-				int bID = worldObj.getBlockId(xPos+x-1, y, zPos+z-1);
-				
-				ItemStack stack = inventory[xPos+zPos*3];
-				if (bID == 0)
-					inventory[xPos+zPos*3] = null;
-				else if (stack == null || stack.itemID != bID)
-					inventory[xPos+zPos*3] = new ItemStack(bID, 1, worldObj.getBlockMetadata(xPos+x-1, y, zPos+z-1));
-			}
-		}
-	}
-	
-	public void setWorldToInventory(int x, int y, int z)
-	{
-		for (int xPos = 0; xPos <= 2; xPos++)
-		{
-			for (int zPos = 0; zPos <= 2; zPos++)
-			{
-				ItemStack stack = inventory[xPos+zPos*3];
-				if (stack == null)
-					worldObj.setBlockWithNotify(xPos+x-1, y, zPos+z-1, 0);
-				
-				else if (stack.itemID < Block.blocksList.length && Block.blocksList[stack.itemID] != null)
-					worldObj.setBlockAndMetadataWithNotify(xPos+x-1, y, zPos+z-1, stack.itemID, stack.getItemDamage());
-			}
-		}
-	}
-	
-	public void checkValidPlacement()
-	{
-		switch(getDirection())
-		{
-		case 2: // +z
-			checkValidStructure(xCoord, yCoord, zCoord+2);
-			break;
-		case 3: // -z
-			checkValidStructure(xCoord, yCoord, zCoord-2);
-			break;
-		case 4: // +x
-			checkValidStructure(xCoord+2, yCoord, zCoord);
-			break;
-		case 5: // -x
-			checkValidStructure(xCoord-2, yCoord, zCoord);
-			break;
-		}
-	}
-	
-	public void checkValidStructure(int x, int y, int z)
+
+	public void checkValidStructure (int x, int y, int z)
 	{
 		int numBricks = 0;
-		boolean lavaTank = false;
-		
+		boolean hasLavaTank = false;
+
 		//Check outer layer
-		for (int xPos = x-1; xPos <= x+1; xPos++)
+		for (int xPos = x - 1; xPos <= x + 1; xPos++)
 		{
-			int southID = worldObj.getBlockId(xPos, y, z-2);
-			int northID = worldObj.getBlockId(xPos, y, z+2);
-			if (southID == TConstructContent.searedBrick.blockID)
+			int southID = worldObj.getBlockId(xPos, y, z - 2);
+			int northID = worldObj.getBlockId(xPos, y, z + 2);
+			if (southID == TContent.smeltery.blockID)
 				numBricks++;
-			else if (southID == TConstructContent.lavaTank.blockID)
+			else if (southID == TContent.lavaTank.blockID)
 			{
-				tankCoords = new int[] {xPos, y, z-2};
-				lavaTank = true;
+				lavaTank = new CoordTuple(xPos, y, z - 2);
+				hasLavaTank = true;
 			}
-			
-			if (northID == TConstructContent.searedBrick.blockID)
+
+			if (northID == TContent.smeltery.blockID)
 				numBricks++;
-			else if (northID == TConstructContent.lavaTank.blockID)
+			else if (northID == TContent.lavaTank.blockID)
 			{
-				tankCoords = new int[] {xPos, y, z+2};
-				lavaTank = true;
+				lavaTank = new CoordTuple(xPos, y, z + 2 );
+				hasLavaTank = true;
 			}
 		}
-		for (int zPos = z-1; zPos <= z+1; zPos++)
+		for (int zPos = z - 1; zPos <= z + 1; zPos++)
 		{
-			int westID = worldObj.getBlockId(x-2, y, zPos);
-			int eastID = worldObj.getBlockId(x+2, y, zPos);
-			if (westID == TConstructContent.searedBrick.blockID)
+			int westID = worldObj.getBlockId(x - 2, y, zPos);
+			int eastID = worldObj.getBlockId(x + 2, y, zPos);
+			if (westID == TContent.smeltery.blockID)
 				numBricks++;
-			else if (westID == TConstructContent.lavaTank.blockID)
+			else if (westID == TContent.lavaTank.blockID)
 			{
-				tankCoords = new int[] {x-2, y, zPos};
-				lavaTank = true;
+				lavaTank = new CoordTuple(x - 2, y, zPos);
+				hasLavaTank = true;
 			}
-			
-			if (eastID == TConstructContent.searedBrick.blockID)
+
+			if (eastID == TContent.smeltery.blockID)
 				numBricks++;
-			else if (eastID == TConstructContent.lavaTank.blockID)
+			else if (eastID == TContent.lavaTank.blockID)
 			{
-				tankCoords = new int[] {x+2, y, zPos};
-				lavaTank = true;
+				lavaTank = new CoordTuple( x + 2, y, zPos );
+				hasLavaTank = true;
 			}
 		}
-		
+
 		//Check floor
-		for (int xPos = x-1; xPos <= x+1; xPos++)
+		for (int xPos = x - 1; xPos <= x + 1; xPos++)
 		{
-			for (int zPos = z-1; zPos <= z+1; zPos++)
+			for (int zPos = z - 1; zPos <= z + 1; zPos++)
 			{
-				if (worldObj.getBlockId(xPos, y-1, zPos) == TConstructContent.searedBrick.blockID)
+				if (worldObj.getBlockId(xPos, y - 1, zPos) == TContent.smeltery.blockID)
 					numBricks++;
 			}
 		}
 		
-		if (numBricks == 19 && lavaTank)
+		System.out.println(numBricks);
+
+		if (numBricks == 20 && hasLavaTank)
 		{
-			validStructure = true;
-			internalTemp = 550;
+			if (!validStructure)
+			{
+				centerPos = new CoordTuple(x, y, z);
+				validStructure = true;
+			}
+			internalTemp = 800;
 		}
 		else
 		{
@@ -358,29 +366,84 @@ public class SmelteryLogic extends InventoryLogic
 		}
 	}
 	
+	public int getCapacity()
+	{
+		return maxLiquid;
+	}
+	
+	public LiquidStack drain (int maxDrain, boolean doDrain)
+	{
+		if (moltenMetal.size() == 0)
+			return null;
+		
+		LiquidStack liquid = moltenMetal.get(0);
+		if (liquid.amount - maxDrain < 0)
+		{
+			LiquidStack liq = liquid.copy();
+			if (doDrain)
+			{
+				//liquid = null;
+				moltenMetal.remove(liquid);
+				worldObj.markBlockForUpdate(xCoord, yCoord, zCoord);
+			}
+			return liq;
+		}
+		else
+		{
+			if (doDrain)
+			{
+				liquid.amount -= maxDrain;
+				worldObj.markBlockForUpdate(xCoord, yCoord, zCoord);
+			}
+			return new LiquidStack(liquid.itemID, maxDrain, liquid.itemMeta);
+		}
+	}
+
 	/* NBT */
 	@Override
-	public void readFromNBT(NBTTagCompound tags)
-    {
-        super.readFromNBT(tags);
-        validStructure = tags.getBoolean("ValidStructure");
-        direction = tags.getByte("Direction");
-        useTime = tags.getInteger("UseTime");
-        internalTemp = tags.getInteger("Temp");
-        tankCoords = tags.getIntArray("TankCoords");
-    }
-	
+	public void readFromNBT (NBTTagCompound tags)
+	{
+		super.readFromNBT(tags);
+		direction = tags.getByte("Direction");
+		useTime = tags.getInteger("UseTime");
+		meltingTemps = tags.getIntArray("MeltingTemps");
+		activeTemps = tags.getIntArray("ActiveTemps");
+		
+		NBTTagList liquidTag = tags.getTagList("Liquids");
+		moltenMetal.clear();
+		
+		for (int iter = 0; iter < liquidTag.tagCount(); iter++)
+        {
+            NBTTagCompound tagList = (NBTTagCompound)liquidTag.tagAt(iter);
+            int id = tagList.getInteger("id");
+            int amount = tagList.getInteger("amount");
+            int meta = tagList.getInteger("meta");
+            moltenMetal.add(new LiquidStack(id, amount, meta));
+        }
+	}
+
 	@Override
-	public void writeToNBT(NBTTagCompound tags)
-    {
-        super.writeToNBT(tags);
-        tags.setBoolean("ValidStructure", validStructure);
-        tags.setByte("Direction", direction);
-        tags.setInteger("UseTime", useTime);
-        tags.setInteger("Temp", internalTemp);
-        tags.setIntArray("TankCoords", tankCoords);
-    }
-	
+	public void writeToNBT (NBTTagCompound tags)
+	{
+		super.writeToNBT(tags);
+		tags.setByte("Direction", direction);
+		tags.setInteger("UseTime", useTime);
+		tags.setIntArray("MeltingTemps", meltingTemps);
+		tags.setIntArray("ActiveTemps", activeTemps);
+		
+		NBTTagList taglist = new NBTTagList();
+		for (LiquidStack liquid : moltenMetal)
+		{
+			NBTTagCompound liquidTag = new NBTTagCompound();
+			liquidTag.setInteger("id", liquid.itemID);
+			liquidTag.setInteger("amount", liquid.amount);
+			liquidTag.setInteger("meta", liquid.itemMeta);
+			taglist.appendTag(liquidTag);
+		}
+		
+		tags.setTag("Liquids", taglist);
+	}
+
 	/* Packets */
 	@Override
 	public Packet getDescriptionPacket ()
@@ -393,7 +456,7 @@ public class SmelteryLogic extends InventoryLogic
 	@Override
 	public void onDataPacket (INetworkManager net, Packet132TileEntityData packet)
 	{
-		worldObj.getBlockTileEntity(xCoord, yCoord, zCoord).readFromNBT(packet.customParam1);
+		readFromNBT(packet.customParam1);
 		worldObj.markBlockForRenderUpdate(xCoord, yCoord, zCoord);
 	}
 }
