@@ -46,10 +46,14 @@ public class PHConstruct {
         smeltery = config.getBlock("Smeltery", 1474).getInt(1474);
         oreSlag = config.getBlock("Ores Slag", 1475).getInt(1475);
         craftedSoil = config.getBlock("Special Soil", 1476).getInt(1476);
-        landmine = config.getBlock("Landmine", 1477).getInt(1477);
+        searedTable = config.getBlock("Seared Table", 1477).getInt(1477);
+        metalBlock = config.getBlock("Metal Storage", 1478).getInt(1478);
+        metalFlowing = config.getBlock("Liquid Metal Flowing", 1479).getInt(1479);
+        metalStill = config.getBlock("Liquid Metal Still", 1480).getInt(1480);
+        //landmine = config.getBlock("Landmine", 1481).getInt(1481);
         
-        ironFlowing = config.getBlock("Liquid Iron Flowing", 1478).getInt(1478);
-        ironStill = config.getBlock("Liquid Iron Still", 1479).getInt(1479);
+        /*ironFlowing = config.getBlock("Liquid Iron Flowing", 1504).getInt(1504);
+        ironStill = config.getBlock("Liquid Iron Still", 1505).getInt(1505);
         goldFlowing = config.getBlock("Liquid Gold Flowing", 1480).getInt(1480);
         goldStill = config.getBlock("Liquid Gold Still", 1481).getInt(1481);
         copperFlowing = config.getBlock("Liquid Copper Flowing", 1482).getInt(1482);
@@ -73,7 +77,7 @@ public class PHConstruct {
         obsidianFlowing = config.getBlock("Liquid Obsidian Flowing", 1500).getInt(1500);
         obsidianStill = config.getBlock("Liquid Obsidian Still", 1501).getInt(1501);
         steelFlowing = config.getBlock("Liquid Steel Flowing", 1502).getInt(1502);
-        steelStill = config.getBlock("Liquid Steel Still", 1503).getInt(1503);
+        steelStill = config.getBlock("Liquid Steel Still", 1503).getInt(1503);*/
         
         manual = config.getItem("Patterns and Misc", "Tinker's Manual", 14018).getInt(14018);
         blankPattern = config.getItem("Patterns and Misc", "Blank Patterns", 14019).getInt(14019);
@@ -81,6 +85,7 @@ public class PHConstruct {
         toolRod = config.getItem("Patterns and Misc", "Tool Rod", 14021).getInt(14021);
         toolShard = config.getItem("Patterns and Misc", "Tool Shard", 14022).getInt(14022);
         woodPattern = config.getItem("Patterns and Misc", "Wood Pattern", 14023).getInt(14023);
+        metalPattern = config.getItem("Patterns and Misc", "Metal Pattern", 14024).getInt(14024);
         
         pickaxeHead = config.getItem("Tool Parts", "Pickaxe Head", 14026).getInt(14026);
         shovelHead = config.getItem("Tool Parts", "Shovel Head", 14027).getInt(14027);
@@ -112,6 +117,8 @@ public class PHConstruct {
         mattock = config.getItem("Tools", "Mattock", 14060).getInt(14060);
         lumberaxe = config.getItem("Tools", "Lumber Axe", 14061).getInt(14061);
         longbow = config.getItem("Tools", "Longbow", 14062).getInt(14062);
+        
+        buckets = config.getItem("Patterns and Misc", "Buckets", 14101).getInt(14101);
         
         boolean ic2 = true;
         boolean xycraft = true;
@@ -155,15 +162,19 @@ public class PHConstruct {
     public static int ores;
     public static int lavaTank;
     public static int smeltery;
+    public static int searedTable;
     public static int craftedSoil;
     public static int oreSlag;
-    public static int axle;
+    public static int metalBlock;
+    //public static int axle;
 
     //Traps
-    public static int landmine;
+    //public static int landmine;
     
     //Liquids
-    public static int ironFlowing;
+    public static int metalFlowing;
+    public static int metalStill;
+    /*public static int ironFlowing;
     public static int ironStill;
     public static int goldFlowing;
     public static int goldStill;
@@ -190,7 +201,7 @@ public class PHConstruct {
     public static int obsidianFlowing;
     public static int obsidianStill;
     public static int steelFlowing;
-    public static int steelStill;
+    public static int steelStill;*/
     
     //Patterns and misc
     public static int blankPattern;
@@ -198,8 +209,10 @@ public class PHConstruct {
     public static int toolRod;
     public static int toolShard;
     public static int woodPattern;
+    public static int metalPattern;
     
     public static int manual;
+    public static int buckets;
     
     //Tools
     public static int pickaxe;
