@@ -37,10 +37,11 @@ public class TProxyClient extends TProxyCommon
 		Minecraft mc = Minecraft.getMinecraft();
 		smallFontRenderer = new SmallFontRenderer(mc.gameSettings, "/font/default.png", mc.renderEngine, false);
 		RenderingRegistry.registerBlockHandler(new TableRender());
+		RenderingRegistry.registerBlockHandler(new FrypanRender());
 		RenderingRegistry.registerBlockHandler(new SmelteryRender());
 		RenderingRegistry.registerBlockHandler(new TankRender());
-		RenderingRegistry.registerBlockHandler(new FrypanRender());
-		RenderingRegistry.registerBlockHandler(new RenderLiquidMetal());
+		RenderingRegistry.registerBlockHandler(new SearedRender());
+		RenderingRegistry.registerBlockHandler(new FluidRender());
 		//RenderingRegistry.registerBlockHandler(new AxleRender());
 
 		RenderEngine renderEngine = FMLClientHandler.instance().getClient().renderEngine;
@@ -97,12 +98,12 @@ public class TProxyClient extends TProxyCommon
 		LanguageRegistry.instance().addStringLocalization("itemGroup.TConstructMaterials", "TConstruct Materials");
 		LanguageRegistry.instance().addStringLocalization("itemGroup.TConstructBlocks", "TConstruct Blocks");*/
 
-		String langDir = "/lang/";
-		String[]	langFiles	=
-			{ "TConstruct_en_US.xml" };
+		String langDir = "/tinkerlang/";
+		String[] langFiles =
+			{ "en_US.xml" };
 
 		for (String langFile : langFiles)
-		//{
+		{
 			try
 			{
 				LanguageRegistry.instance().loadLocalization(langDir + langFile, langFile.substring(langFile.lastIndexOf('/') + 1, langFile.lastIndexOf('.')), true);
@@ -111,9 +112,9 @@ public class TProxyClient extends TProxyCommon
 			{
 				e.printStackTrace();
 			}
-		//}
+		}
 
-		LanguageRegistry.instance().addStringLocalization("crafters.ToolStation", "Tool Station");
+		/*LanguageRegistry.instance().addStringLocalization("crafters.ToolStation", "Tool Station");
 		LanguageRegistry.instance().addStringLocalization("crafters.PartBuilder", "Part Builder");
 		LanguageRegistry.instance().addStringLocalization("crafters.PatternShaper", "Pattern Shaper");
 		LanguageRegistry.instance().addStringLocalization("inventory.PatternChest", "Pattern Chest");
@@ -141,7 +142,7 @@ public class TProxyClient extends TProxyCommon
 		LanguageRegistry.instance().addStringLocalization("Smeltery.Drain.name", "Smeltery Drain");
 		LanguageRegistry.instance().addStringLocalization("Smeltery.Brick.name", "Seared Bricks");
 		LanguageRegistry.instance().addStringLocalization("Smeltery.Gague.name", "Seared Glass");
-		LanguageRegistry.instance().addStringLocalization("Smeltery.Window.name", "Seared Window");
+		LanguageRegistry.instance().addStringLocalization("Smeltery.Window.name", "Seared Window");*/
 
 		for (int mat = 0; mat < materialTypes.length; mat++)
 		{
@@ -172,6 +173,9 @@ public class TProxyClient extends TProxyCommon
 			String internalName = "item.tconstruct.Pattern." + patterns[i] + ".name";
 			String visibleName = patternNames[i] + " Pattern";
 			LanguageRegistry.instance().addStringLocalization(internalName, "en_US", visibleName);
+			internalName = "item.tconstruct.MetalPattern." + patterns[i] + ".name";
+			visibleName = patternNames[i] + " Cast";
+			LanguageRegistry.instance().addStringLocalization(internalName, "en_US", visibleName);
 		}
 
 		LanguageRegistry.addName(TContent.manualBook, "Tinker's Log");
@@ -187,7 +191,7 @@ public class TProxyClient extends TProxyCommon
 		LanguageRegistry.addName(TContent.mattock, "Mattock");
 		//LanguageRegistry.addName(TContent.lumberaxe, "Lumber Axe");
 
-		LanguageRegistry.addName(TContent.ironFlowing, "Liquid Iron");
+		/*LanguageRegistry.addName(TContent.ironFlowing, "Liquid Iron");
 		LanguageRegistry.addName(TContent.ironStill, "Liquid Iron");
 		LanguageRegistry.addName(TContent.goldFlowing, "Liquid Gold");
 		LanguageRegistry.addName(TContent.goldStill, "Liquid Gold");
@@ -213,14 +217,18 @@ public class TProxyClient extends TProxyCommon
 		LanguageRegistry.addName(TContent.obsidianFlowing, "Liquid Obsidian");
 		LanguageRegistry.addName(TContent.obsidianStill, "Liquid Obsidian");
 		LanguageRegistry.addName(TContent.steelFlowing, "Liquid Steel");
-		LanguageRegistry.addName(TContent.steelStill, "Liquid Steel");
+		LanguageRegistry.addName(TContent.steelStill, "Liquid Steel");*/
 	}
 
 	public static final String[] shardNames = new String[] { "Wood", "Stone Shard", "Iron Chunk", "Flint Shard", "Cactus Shard", "Bone", "Obsidian Shard", "Netherrack Shard", "Slime Crystal Fragment", "Paper", "Cobalt Chunk", "Ardite Chunk", "Manyullyn Chunk", "Copper Chunk", "Bronze Chunk" };
 
-	public static final String[] materialItemInternalNames = new String[] { "PaperStack", "SlimeCrystal", "SearedBrick", "CobaltIngot", "ArditeIngot", "ManyullynIngot", "Mossball", "LavaCrystal", "NecroticBone", "CopperIngot", "TinIngot", "AluminumIngot", "RawAluminum" };
+	public static final String[] materialItemInternalNames = new String[] { 
+		"PaperStack", "SlimeCrystal", "SearedBrick", "CobaltIngot", "ArditeIngot", "ManyullynIngot", "Mossball", "LavaCrystal", "NecroticBone",
+		"CopperIngot", "TinIngot", "AluminumIngot", "RawAluminum", "BronzeIngot", "AlBrassIngot", "AlumiteIngot", "SteelIngot" };
 
-	public static final String[] materialItemNames = new String[] { "Paper Stack", "Slime Crystal", "Seared Brick", "Cobalt Ingot", "Ardite Ingot", "Manyullyn Ingot", "Ball of Moss", "Lava Crystal", "Necrotic Bone", "Copper Ingot", "Tin Ingot", "Aluminum Ingot", "Raw Aluminum" };
+	public static final String[] materialItemNames = new String[] { 
+		"Paper Stack", "Slime Crystal", "Seared Brick", "Cobalt Ingot", "Ardite Ingot", "Manyullyn Ingot", "Ball of Moss", "Lava Crystal", "Necrotic Bone", 
+		"Copper Ingot", "Tin Ingot", "Aluminum Ingot", "Raw Aluminum", "Bronze Ingot", "Aluminum Brass Ingot", "Alumite Ingot", "Steel Ingot" };
 
 	public static final String[] toolMaterialNames = new String[] { "Wood", "Stone", "Iron", "Flint", "Cactus", "Bone", "Obsidian", "Netherrack", "Slime", "Paper", "Cobalt", "Ardite", "Manyullyn", "Copper", "Bronze" };
 
@@ -228,9 +236,9 @@ public class TProxyClient extends TProxyCommon
 
 	public static final String[] materialNames = new String[] { " Rod", " Pickaxe Head", " Shovel Head", " Axe Head", " Sword Blade", " Wide Guard", " Hand Guard", " Crossbar", " Binding", " Pan", " Board", " Broad Axe Head" };
 
-	public static final String[] patterns = new String[] { "blank", "rod", "pickaxe", "shovel", "axe", "blade", "largeguard", "medguard", "crossbar", "binding", "frypan", "sign", "lumber" };
+	public static final String[] patterns = new String[] { "ingot", "rod", "pickaxe", "shovel", "axe", "blade", "largeguard", "medguard", "crossbar", "binding", "frypan", "sign", "lumber" };
 
-	public static final String[] patternNames = new String[] { "Blank", "Tool Rod", "Pickaxe Head", "Shovel Head", "Axe Head", "Sword Blade", "Wide Guard", "Hand Guard", "Crossbar", "Tool Binding", "Pan", "Board", "Broad Axe Head" };
+	public static final String[] patternNames = new String[] { "Ingot", "Tool Rod", "Pickaxe Head", "Shovel Head", "Axe Head", "Sword Blade", "Wide Guard", "Hand Guard", "Crossbar", "Tool Binding", "Pan", "Board", "Broad Axe Head" };
 
 	public static Document diary;
 	public static Document volume1;
